@@ -30,5 +30,5 @@ outputs:
     description: ETag of the last updated resource
 
 runs:
-  using: node24
+  using: node20
   main: dist/index.js
