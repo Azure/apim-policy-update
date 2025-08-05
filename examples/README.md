@@ -6,9 +6,10 @@ paths for your API Management policies.
 ## Structure
 
 ```
-manifest-based/
+examples/
 ├── policy_manifest.yaml    # Manifest file specifying policy locations
 └── policies/              # Policy files organized by API
+    ├── README.md           # Development policies documentation
     └── sample-api/
         ├── api.xml         # API-level policy
         └── operations/
@@ -27,7 +28,7 @@ Action:
     subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     resource_group: ${{ secrets.AZURE_RESOURCE_GROUP }}
     apim_name: ${{ secrets.APIM_SERVICE_NAME }}
-    policy_manifest_path: 'examples/manifest-based/policy_manifest.yaml'
+    policy_manifest_path: 'examples/policy_manifest.yaml'
 ```
 
 ## Manifest Format
@@ -38,9 +39,9 @@ and their policy files:
 ```yaml
 policies:
   sample-api:
-    apiPolicyPath: 'policies/sample-api/api.xml'
+    apiPolicyPath: 'examples/policies/sample-api/api.xml'
     operations:
-      get-data: 'policies/sample-api/operations/get-data.xml'
+      get-data: 'examples/policies/sample-api/operations/get-data.xml'
 ```
 
 This approach is useful when you need:
