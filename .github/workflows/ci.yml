@@ -72,14 +72,11 @@ jobs:
           echo "The important thing is that the action loads correctly and validates inputs."
           echo "Authentication failure in CI without real credentials is expected and acceptable."
 
-  # Integration test with real Azure resources - only runs manually or with secrets
+  # Integration test with real Azure resources - only runs manually
   test-integration:
-    name: Integration Test (Manual/Secrets Required)
+    name: Integration Test (Manual Trigger Only)
     runs-on: ubuntu-latest
-    if:
-      github.event_name == 'workflow_dispatch' || (github.event_name == 'push'
-      && github.ref == 'refs/heads/main' && github.repository ==
-      'azure/apim-policy-update')
+    if: github.event_name == 'workflow_dispatch'
     environment: integration-test
 
     steps:
