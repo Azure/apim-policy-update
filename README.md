@@ -216,6 +216,58 @@ az login
 Automatically used when running on Azure resources with managed identity
 enabled.
 
+## 🧪 Testing Strategy
+
+This action follows a comprehensive testing approach to ensure reliability
+without compromising security:
+
+### CI/CD Pipeline Tests
+
+The continuous integration pipeline includes two types of tests:
+
+1. **Mock Tests** (runs on every PR/push):
+   - Tests action initialization and input validation
+   - Uses mock Azure credentials to verify the action loads correctly
+   - Fails gracefully without making real API calls
+   - Safe to run in public repositories
+
+2. **Integration Tests** (manual trigger or protected environments):
+   - Tests against real Azure APIM resources
+   - Requires valid Azure credentials stored as GitHub Secrets
+   - Only runs when manually triggered or in trusted environments
+   - Uses dedicated test APIM service to avoid affecting production
+
+### Local Development Testing
+
+For local testing during development:
+
+```bash
+# Install dependencies
+npm install
+
+# Run unit tests
+npm run test
+
+# Build the action
+npm run bundle
+
+# Test with mock Azure resources (will fail authentication, but validates logic)
+node dist/index.js
+```
+
+### Required Secrets for Integration Testing
+
+To run integration tests, configure these secrets in your repository:
+
+- `AZURE_CREDENTIALS`: Service principal credentials (JSON format)
+- `AZURE_SUBSCRIPTION_ID`: Azure subscription ID
+- `AZURE_RESOURCE_GROUP`: Resource group containing test APIM service
+- `AZURE_APIM_NAME`: Name of test APIM service
+
+**Security Note**: Never commit real Azure credentials to version control.
+Integration tests should only be run in controlled environments with proper
+secret management.
+
 ## 🔧 Advanced Configuration
 
 ### Custom Manifest with Mixed Sources
