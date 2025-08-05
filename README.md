@@ -248,11 +248,39 @@ npm install
 # Run unit tests
 npm run test
 
+# Run linting checks
+npm run lint
+
+# Check code formatting
+npm run format:check
+
+# Fix formatting issues
+npm run format:write
+
 # Build the action
 npm run bundle
 
 # Test with mock Azure resources (will fail authentication, but validates logic)
 node dist/index.js
+```
+
+### Local Linting Setup
+
+To run comprehensive linting locally (similar to CI):
+
+```bash
+# Install additional linting tools
+pip install yamllint
+npm install -g markdownlint-cli
+
+# Check YAML files
+yamllint .github/workflows/*.yml
+
+# Check Markdown files
+markdownlint README.md examples/README.md
+
+# Run all project lints
+npm run lint && npm run format:check
 ```
 
 ### Required Secrets for Integration Testing

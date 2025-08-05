@@ -1,3 +1,4 @@
+---
 name: Continuous Integration
 
 on:
@@ -7,7 +8,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:
+  workflow_dispatch: true
 
 permissions:
   contents: read
@@ -68,9 +69,9 @@ jobs:
 
       - name: Verify Mock Test Behavior
         run: |
-          echo "Mock test completed. This is expected to fail when trying to authenticate to Azure."
-          echo "The important thing is that the action loads correctly and validates inputs."
-          echo "Authentication failure in CI without real credentials is expected and acceptable."
+          echo "Mock test completed. Expected to fail when authenticating."
+          echo "Important: action loads correctly and validates inputs."
+          echo "Authentication failure in CI without credentials is expected."
 
   # Integration test with real Azure resources - only runs manually
   test-integration:

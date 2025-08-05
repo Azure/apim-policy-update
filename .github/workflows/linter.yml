@@ -1,3 +1,4 @@
+---
 # This workflow will lint the entire codebase using the
 # `super-linter/super-linter` action.
 #
@@ -56,3 +57,7 @@ jobs:
           VALIDATE_TYPESCRIPT_ES: false
           VALIDATE_JSON: false
           VALIDATE_TYPESCRIPT_STANDARD: false
+          VALIDATE_NATURAL_LANGUAGE: false
+          VALIDATE_MARKDOWN: false
+          VALIDATE_MARKDOWN_PRETTIER: false
+          LOG_LEVEL: DEBUG

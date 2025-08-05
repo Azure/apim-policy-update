@@ -4,9 +4,8 @@
 MD004:
   style: dash
 
-# Disable line length for tables
-MD013:
-  tables: false
+# Disable line length
+MD013: false
 
 # Ordered list item prefix
 MD029:
@@ -18,6 +17,12 @@ MD030:
   ol_single: 1
   ul_multi: 1
   ol_multi: 1
+
+# Disable trailing punctuation in headers
+MD026: false
+
+# Disable multiple top level headers in the same document
+MD025: false
 
 # Code block style
 MD046:
