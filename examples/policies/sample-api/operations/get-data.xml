@@ -1,0 +1,20 @@
+<policies>
+  <inbound>
+    <base />
+    <!-- Additional logging for development -->
+    <set-variable name="requestId" value="@(Guid.NewGuid().ToString())" />
+  </inbound>
+  <backend>
+    <base />
+  </backend>
+  <outbound>
+    <base />
+    <!-- Add request ID to response -->
+    <set-header name="X-Request-ID" exists-action="override">
+      <value>@((string)context.Variables["requestId"])</value>
+    </set-header>
+  </outbound>
+  <on-error>
+    <base />
+  </on-error>
+</policies>

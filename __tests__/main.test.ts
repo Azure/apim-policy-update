@@ -1,62 +1,320 @@
 /**
  * Unit tests for the action's main functionality, src/main.ts
- *
- * To mock dependencies in ESM, you can create fixtures that export mock
- * functions and objects. For example, the core module is mocked in this test,
- * so that the actual '@actions/core' module is not imported.
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { jest } from '@jest/globals'
-import * as core from '../__fixtures__/core.js'
-import { wait } from '../__fixtures__/wait.js'
-
-// Mocks should be declared before the module being tested is imported.
-jest.unstable_mockModule('@actions/core', () => core)
-jest.unstable_mockModule('../src/wait.js', () => ({ wait }))
-
-// The module being tested should be imported dynamically. This ensures that the
-// mocks are used in place of any actual dependencies.
-const { run } = await import('../src/main.js')
 
 describe('main.ts', () => {
+  let mockCore: any
+  let mockParseInputs: any
+  let mockAzureApimClient: any
+  let mockDiscoverPolicies: any
+  let mockValidatePolicies: any
+  let run: any
+
+  beforeAll(async () => {
+    // Mock dependencies
+    mockCore = {
+      info: jest.fn(),
+      error: jest.fn(),
+      warning: jest.fn(),
+      setFailed: jest.fn(),
+      setOutput: jest.fn(),
+      getInput: jest.fn()
+    }
+
+    mockParseInputs = jest.fn()
+    mockAzureApimClient = jest.fn()
+    mockDiscoverPolicies = jest.fn()
+    mockValidatePolicies = jest.fn()
+
+    // Set up mocks before importing
+    jest.unstable_mockModule('@actions/core', () => mockCore)
+
+    jest.unstable_mockModule('../src/utils.js', () => ({
+      parseInputs: mockParseInputs
+    }))
+
+    jest.unstable_mockModule('../src/azure-client.js', () => ({
+      AzureApimClient: mockAzureApimClient
+    }))
+
+    jest.unstable_mockModule('../src/policy-discovery.js', () => ({
+      discoverPolicies: mockDiscoverPolicies,
+      validatePolicies: mockValidatePolicies
+    }))
+    jest.unstable_mockModule('../src/utils.js', () => ({
+      parseInputs: mockParseInputs
+    }))
+    jest.unstable_mockModule('../src/azure-client.js', () => ({
+      AzureApimClient: mockAzureApimClient
+    }))
+    jest.unstable_mockModule('../src/policy-discovery.js', () => ({
+      discoverPolicies: mockDiscoverPolicies,
+      validatePolicies: mockValidatePolicies
+    }))
+
+    // Import the module being tested
+    const mainModule = await import('../src/main.js')
+    run = mainModule.run
+  })
+
   beforeEach(() => {
-    // Set the action's inputs as return values from core.getInput().
-    core.getInput.mockImplementation(() => '500')
-
-    // Mock the wait function so that it does not actually wait.
-    wait.mockImplementation(() => Promise.resolve('done!'))
+    jest.clearAllMocks()
   })
 
-  afterEach(() => {
-    jest.resetAllMocks()
-  })
+  it('should run successfully with valid configuration and policies', async () => {
+    // Mock successful parsing
+    const mockConfig = {
+      subscriptionId: 'test-subscription',
+      resourceGroupName: 'test-rg',
+      serviceName: 'test-apim'
+    }
+    mockParseInputs.mockReturnValue(mockConfig)
 
-  it('Sets the time output', async () => {
+    // Mock successful Azure client
+    const mockClient = {
+      testConnection: jest.fn<() => Promise<boolean>>().mockResolvedValue(true),
+      listApis: jest
+        .fn<() => Promise<string[]>>()
+        .mockResolvedValue(['api1', 'api2']),
+      listOperations: jest
+        .fn<(apiId: string) => Promise<string[]>>()
+        .mockResolvedValue(['get-users', 'post-users']),
+      updateApiPolicy: jest.fn<() => Promise<any>>().mockResolvedValue({
+        apiId: 'api1',
+        updated: true,
+        etag: 'etag-123'
+      }),
+      updateOperationPolicy: jest.fn<() => Promise<any>>().mockResolvedValue({
+        apiId: 'api1',
+        operationId: 'get-users',
+        updated: true,
+        etag: 'etag-456'
+      })
+    }
+    mockAzureApimClient.mockImplementation(() => mockClient)
+
+    // Mock policy discovery
+    const mockPolicies = [
+      {
+        filePath: '/test/api1.xml',
+        apiId: 'api1',
+        scope: 'api',
+        content: '<policies></policies>'
+      },
+      {
+        filePath: '/test/api1/get-users.xml',
+        apiId: 'api1',
+        operationId: 'get-users',
+        scope: 'operation',
+        content: '<policies></policies>'
+      }
+    ]
+    mockDiscoverPolicies.mockResolvedValue(mockPolicies)
+    mockValidatePolicies.mockReturnValue(true)
+
     await run()
 
-    // Verify the time output was set.
-    expect(core.setOutput).toHaveBeenNthCalledWith(
-      1,
-      'time',
-      // Simple regex to match a time string in the format HH:MM:SS.
-      expect.stringMatching(/^\d{2}:\d{2}:\d{2}/)
+    expect(mockParseInputs).toHaveBeenCalled()
+    expect(mockAzureApimClient).toHaveBeenCalledWith(mockConfig)
+    expect(mockClient.testConnection).toHaveBeenCalled()
+    expect(mockDiscoverPolicies).toHaveBeenCalledWith(undefined)
+    expect(mockValidatePolicies).toHaveBeenCalledWith(mockPolicies)
+
+    // Check policy update calls
+    expect(mockClient.updateApiPolicy).toHaveBeenCalledWith(
+      'api1',
+      '<policies></policies>'
     )
+    expect(mockClient.updateOperationPolicy).toHaveBeenCalledWith(
+      'api1',
+      'get-users',
+      '<policies></policies>'
+    )
+
+    // Should set ETag output (from operation policy which is last)
+    expect(mockCore.setOutput).toHaveBeenCalledWith('etag', 'etag-456')
+    expect(mockCore.info).toHaveBeenCalledWith('Action completed successfully')
   })
 
-  it('Sets a failed status', async () => {
-    // Clear the getInput mock and return an invalid value.
-    core.getInput.mockClear().mockReturnValueOnce('this is not a number')
+  it('should handle single API policy update', async () => {
+    // Mock successful parsing
+    const mockConfig = {
+      subscriptionId: 'test-subscription',
+      resourceGroupName: 'test-rg',
+      serviceName: 'test-apim'
+    }
+    mockParseInputs.mockReturnValue(mockConfig)
 
-    // Clear the wait mock and return a rejected promise.
-    wait
-      .mockClear()
-      .mockRejectedValueOnce(new Error('milliseconds is not a number'))
+    // Mock successful Azure client
+    const mockClient = {
+      testConnection: jest.fn<() => Promise<boolean>>().mockResolvedValue(true),
+      listApis: jest.fn<() => Promise<string[]>>().mockResolvedValue(['api1']),
+      listOperations: jest
+        .fn<(apiId: string) => Promise<string[]>>()
+        .mockResolvedValue(['get-users']),
+      updateApiPolicy: jest.fn<() => Promise<any>>().mockResolvedValue({
+        apiId: 'api1',
+        updated: true,
+        etag: 'api-etag-123'
+      })
+    }
+    mockAzureApimClient.mockImplementation(() => mockClient)
+
+    // Mock policy discovery
+    const mockPolicies = [
+      {
+        filePath: '/test/api1.xml',
+        apiId: 'api1',
+        scope: 'api',
+        content: '<policies></policies>'
+      }
+    ]
+    mockDiscoverPolicies.mockResolvedValue(mockPolicies)
+    mockValidatePolicies.mockReturnValue(true)
 
     await run()
 
-    // Verify that the action was marked as failed.
-    expect(core.setFailed).toHaveBeenNthCalledWith(
-      1,
-      'milliseconds is not a number'
+    expect(mockClient.updateApiPolicy).toHaveBeenCalledWith(
+      'api1',
+      '<policies></policies>'
     )
+
+    // Should set ETag output
+    expect(mockCore.setOutput).toHaveBeenCalledWith('etag', 'api-etag-123')
+    expect(mockCore.info).toHaveBeenCalledWith('Action completed successfully')
+  })
+
+  it('should handle empty policy discovery gracefully', async () => {
+    // Mock successful parsing and connection
+    const mockConfig = {
+      subscriptionId: 'test-subscription',
+      resourceGroupName: 'test-rg',
+      serviceName: 'test-apim'
+    }
+    mockParseInputs.mockReturnValue(mockConfig)
+
+    const mockClient = {
+      testConnection: jest.fn<() => Promise<boolean>>().mockResolvedValue(true),
+      listApis: jest.fn<() => Promise<string[]>>().mockResolvedValue(['api1']),
+      listOperations: jest
+        .fn<(apiId: string) => Promise<string[]>>()
+        .mockResolvedValue([])
+    }
+    mockAzureApimClient.mockImplementation(() => mockClient)
+
+    // Mock empty policy discovery
+    mockDiscoverPolicies.mockResolvedValue([])
+
+    await run()
+
+    expect(mockCore.warning).toHaveBeenCalledWith(
+      'No policy files found to update'
+    )
+    expect(mockCore.setOutput).toHaveBeenCalledWith('etag', '')
+  })
+
+  it('should fail when policy validation fails', async () => {
+    // Mock successful parsing and connection
+    const mockConfig = {
+      subscriptionId: 'test-subscription',
+      resourceGroupName: 'test-rg',
+      serviceName: 'test-apim'
+    }
+    mockParseInputs.mockReturnValue(mockConfig)
+
+    const mockClient = {
+      testConnection: jest.fn<() => Promise<boolean>>().mockResolvedValue(true),
+      listApis: jest.fn<() => Promise<string[]>>().mockResolvedValue(['api1']),
+      listOperations: jest
+        .fn<(apiId: string) => Promise<string[]>>()
+        .mockResolvedValue([])
+    }
+    mockAzureApimClient.mockImplementation(() => mockClient)
+
+    // Mock policy discovery with validation failure
+    const mockPolicies = [{ filePath: '/test/invalid.xml' }]
+    mockDiscoverPolicies.mockResolvedValue(mockPolicies)
+    mockValidatePolicies.mockReturnValue(false)
+
+    await run()
+
+    expect(mockCore.setFailed).toHaveBeenCalledWith('Policy validation failed')
+  })
+
+  it('should fail when Azure connection test fails', async () => {
+    // Mock successful parsing
+    const mockConfig = {
+      subscriptionId: 'test-subscription',
+      resourceGroupName: 'test-rg',
+      serviceName: 'test-apim'
+    }
+    mockParseInputs.mockReturnValue(mockConfig)
+
+    // Mock failed Azure client
+    const mockClient = {
+      testConnection: jest.fn<() => Promise<boolean>>().mockResolvedValue(false)
+    }
+    mockAzureApimClient.mockImplementation(() => mockClient)
+
+    await run()
+
+    expect(mockCore.setFailed).toHaveBeenCalledWith(
+      'Failed to connect to Azure API Management service'
+    )
+    expect(mockCore.setOutput).toHaveBeenCalledWith('etag', '')
+  })
+
+  it('should handle parsing errors', async () => {
+    mockParseInputs.mockImplementation(() => {
+      throw new Error('Invalid configuration')
+    })
+
+    await run()
+
+    expect(mockCore.setFailed).toHaveBeenCalledWith('Invalid configuration')
+    expect(mockCore.setOutput).toHaveBeenCalledWith('etag', '')
+  })
+
+  it('should handle policy discovery errors', async () => {
+    // Mock successful parsing and connection
+    const mockConfig = {
+      subscriptionId: 'test-subscription',
+      resourceGroupName: 'test-rg',
+      serviceName: 'test-apim'
+    }
+    mockParseInputs.mockReturnValue(mockConfig)
+
+    const mockClient = {
+      testConnection: jest.fn<() => Promise<boolean>>().mockResolvedValue(true),
+      listApis: jest.fn<() => Promise<string[]>>().mockResolvedValue(['api1']),
+      listOperations: jest
+        .fn<(apiId: string) => Promise<string[]>>()
+        .mockResolvedValue([])
+    }
+    mockAzureApimClient.mockImplementation(() => mockClient)
+
+    // Mock policy discovery error
+    mockDiscoverPolicies.mockRejectedValue(
+      new Error('Failed to discover policies')
+    )
+
+    await run()
+
+    expect(mockCore.setFailed).toHaveBeenCalledWith(
+      'Failed to discover policies'
+    )
+    expect(mockCore.setOutput).toHaveBeenCalledWith('etag', '')
+  })
+
+  it('should handle unknown errors', async () => {
+    mockParseInputs.mockImplementation(() => {
+      throw 'Unknown error'
+    })
+
+    await run()
+
+    expect(mockCore.setFailed).toHaveBeenCalledWith('An unknown error occurred')
   })
 })

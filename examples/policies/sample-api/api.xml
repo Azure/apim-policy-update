@@ -1,0 +1,18 @@
+<policies>
+  <inbound>
+    <base />
+  </inbound>
+  <backend>
+    <base />
+  </backend>
+  <outbound>
+    <base />
+    <!-- Simple version header -->
+    <set-header name="X-API-Version" exists-action="override">
+      <value>v1.1</value>
+    </set-header>
+  </outbound>
+  <on-error>
+    <base />
+  </on-error>
+</policies>
