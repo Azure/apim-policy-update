@@ -31,6 +31,10 @@ on:
     paths: ['policies/**', 'policy_manifest.yaml']
   workflow_dispatch:
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   update-policies:
     runs-on: ubuntu-latest
@@ -45,13 +49,13 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Update APIM Policies
-        uses: azure/apim-policy-update@v1
+        uses: Azure/apim-policy-update@v0.1.0
         id: update-apim-policy
         with:
-          apim_name: 'my-apim-service'
-          resource_group: 'my-resource-group'
+          apim_name: ${{ secrets.AZURE_APIM_NAME }}
+          resource_group: ${{ secrets.AZURE_RESOURCE_GROUP }}
           subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          # policy_manifest_path: 'path/to/policy_manifest.yaml'  # optional
+          policy_manifest_path: 'policy_manifest.yaml'
 
       - run: echo "Last ETag=${{ steps.update-apim-policy.outputs.etag }}"
 ```
