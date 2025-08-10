@@ -14,45 +14,74 @@ permissions:
   contents: read
 
 jobs:
-  test-typescript:
-    name: TypeScript Tests
-    runs-on: ubuntu-latest
+  build-and-test:
+    name: Build and Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
 
     steps:
       - name: Checkout
-        id: checkout
         uses: actions/checkout@v4
 
       - name: Setup Node.js
-        id: setup-node
         uses: actions/setup-node@v4
         with:
           node-version-file: .node-version
           cache: npm
 
-      - name: Install Dependencies
-        id: npm-ci
+      - name: Install dependencies
         run: npm ci
 
-      - name: Check Format
-        id: npm-format-check
+      - name: Check format
         run: npm run format:check
 
       - name: Lint
-        id: npm-lint
         run: npm run lint
 
-      - name: Test
-        id: npm-ci-test
+      - name: Configure Git (Windows line endings)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: git config --global core.autocrlf false
+
+      - name: Type check
+        run: npx tsc -p tsconfig.json --noEmit
+
+      - name: Unit tests
         run: npm run ci-test
 
+      - name: Build (package)
+        run: npm run package
+
+      - name: Verify dist is up-to-date (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          if ! git diff --quiet -- dist; then
+            echo "::error::dist is not up-to-date. Run 'npm run package' and commit the changes."
+            git status --porcelain
+            exit 1
+          fi
+
+      - name: Verify dist is up-to-date (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          git diff --quiet -- dist
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "dist is not up-to-date. Run 'npm run package' and commit the changes."
+            git status --porcelain
+            exit 1
+          }
+
   test-action:
-    name: GitHub Actions Test
+    name: GitHub Action Self-test (mock)
+    needs: build-and-test
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
-        id: checkout
         uses: actions/checkout@v4
 
       # Mock test without real Azure resources - safe for CI
@@ -72,48 +101,3 @@ jobs:
           echo "Mock test completed. Expected to fail when authenticating."
           echo "Important: action loads correctly and validates inputs."
           echo "Authentication failure in CI without credentials is expected."
-
-  # Integration test with real Azure resources - only runs manually
-  test-integration:
-    name: Integration Test (Manual Trigger Only)
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
-    environment: integration-test
-
-    steps:
-      - name: Checkout
-        id: checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        id: setup-node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .node-version
-          cache: npm
-
-      - name: Install Dependencies
-        id: npm-ci
-        run: npm ci
-
-      - name: Build Action
-        id: npm-build
-        run: npm run bundle
-
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Test Action with Real Azure Resources
-        id: test-action-real
-        uses: ./
-        with:
-          subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          resource_group: ${{ secrets.AZURE_RESOURCE_GROUP }}
-          apim_name: ${{ secrets.AZURE_APIM_NAME }}
-          policy_manifest_path: 'examples/policy_manifest.yaml'
-
-      - name: Print Integration Test Output
-        id: output
-        run: echo "ETag:${{ steps.test-action-real.outputs.etag }}"
