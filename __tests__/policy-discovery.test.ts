@@ -121,6 +121,23 @@ describe('policy-discovery', () => {
         expect.stringContaining('Failed to discover policies')
       )
     })
+
+    it('should skip files when API ID or operation ID cannot be derived', async () => {
+      const mockFiles = [
+        'policies//api.xml',
+        'policies/sample-api/unknown.txt',
+        'policies/sample-api/operations/.xml'
+      ]
+      mockGlob.mockResolvedValue(mockFiles)
+      mockFs.readFile.mockResolvedValue('<policies></policies>')
+
+      const policies = await discoverPoliciesFromDefaultStructure(baseDir)
+
+      expect(policies).toHaveLength(0)
+      expect(mockCore.warning).toHaveBeenCalledWith(
+        expect.stringContaining('Cannot extract API ID')
+      )
+    })
   })
 
   describe('loadPolicyManifest', () => {
@@ -239,6 +256,38 @@ policies:
       expect(policies).toHaveLength(0)
       expect(mockCore.warning).toHaveBeenCalledWith(
         expect.stringContaining('Failed to read API policy')
+      )
+    })
+
+    it('should skip invalid XML in manifest entries', async () => {
+      const manifest = {
+        policies: {
+          api1: {
+            apiPolicyPath: 'custom/api1-policy.xml',
+            operations: {
+              op1: 'custom/api1-op1.xml'
+            }
+          }
+        }
+      }
+
+      mockFs.readFile
+        .mockResolvedValueOnce('manifest content')
+        .mockResolvedValueOnce('not xml')
+        .mockResolvedValueOnce('not xml either')
+      mockParseYaml.mockReturnValue(manifest)
+
+      const policies = await discoverPoliciesFromManifest(
+        '/test/manifest.yaml',
+        baseDir
+      )
+
+      expect(policies).toHaveLength(0)
+      expect(mockCore.warning).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid XML content in API policy')
+      )
+      expect(mockCore.warning).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid XML content in operation policy')
       )
     })
   })

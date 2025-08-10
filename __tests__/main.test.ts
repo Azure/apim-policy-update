@@ -215,6 +215,87 @@ describe('main.ts', () => {
     expect(mockCore.setOutput).toHaveBeenCalledWith('etag', '')
   })
 
+  it('should use manifest path from inputs in discovery', async () => {
+    const mockConfig = {
+      subscriptionId: 'test-subscription',
+      resourceGroupName: 'test-rg',
+      serviceName: 'test-apim',
+      policyManifestPath: '/path/manifest.yaml'
+    }
+    mockParseInputs.mockReturnValue(mockConfig)
+
+    const mockClient = {
+      testConnection: jest.fn<() => Promise<boolean>>().mockResolvedValue(true),
+      listApis: jest.fn<() => Promise<string[]>>().mockResolvedValue([]),
+      listOperations: jest
+        .fn<(apiId: string) => Promise<string[]>>()
+        .mockResolvedValue([]),
+      updateApiPolicy: jest.fn<() => Promise<any>>(),
+      updateOperationPolicy: jest.fn<() => Promise<any>>()
+    }
+    mockAzureApimClient.mockImplementation(() => mockClient)
+
+    mockDiscoverPolicies.mockResolvedValue([])
+
+    await run()
+
+    expect(mockDiscoverPolicies).toHaveBeenCalledWith('/path/manifest.yaml')
+  })
+
+  it('should continue processing when an update returns error', async () => {
+    const mockConfig = {
+      subscriptionId: 'test-subscription',
+      resourceGroupName: 'test-rg',
+      serviceName: 'test-apim'
+    }
+    mockParseInputs.mockReturnValue(mockConfig)
+
+    const mockClient = {
+      testConnection: jest.fn<() => Promise<boolean>>().mockResolvedValue(true),
+      listApis: jest.fn<() => Promise<string[]>>().mockResolvedValue(['api1']),
+      listOperations: jest
+        .fn<(apiId: string) => Promise<string[]>>()
+        .mockResolvedValue(['op1']),
+      updateApiPolicy: jest.fn<() => Promise<any>>().mockResolvedValue({
+        apiId: 'api1',
+        updated: false,
+        error: 'Denied'
+      }),
+      updateOperationPolicy: jest.fn<() => Promise<any>>().mockResolvedValue({
+        apiId: 'api1',
+        operationId: 'op1',
+        updated: true,
+        etag: 'e2'
+      })
+    }
+    mockAzureApimClient.mockImplementation(() => mockClient)
+
+    const mockPolicies = [
+      {
+        filePath: '/test/api1.xml',
+        apiId: 'api1',
+        scope: 'api',
+        content: '<policies></policies>'
+      },
+      {
+        filePath: '/test/op1.xml',
+        apiId: 'api1',
+        operationId: 'op1',
+        scope: 'operation',
+        content: '<policies></policies>'
+      }
+    ]
+    mockDiscoverPolicies.mockResolvedValue(mockPolicies)
+    mockValidatePolicies.mockReturnValue(true)
+
+    await run()
+
+    expect(mockCore.error).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to update api policy')
+    )
+    expect(mockCore.setOutput).toHaveBeenCalledWith('etag', 'e2')
+  })
+
   it('should fail when policy validation fails', async () => {
     // Mock successful parsing and connection
     const mockConfig = {

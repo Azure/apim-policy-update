@@ -78,6 +78,42 @@ describe('utils', () => {
 
       expect(() => parseInputs()).toThrow('subscription_id input is required')
     })
+
+    it('should throw error when resource_group is missing', () => {
+      mockCore.getInput.mockImplementation((name: unknown) => {
+        const nameStr = name as string
+        switch (nameStr) {
+          case 'subscription_id':
+            return 'sub-id'
+          case 'resource_group':
+            return ''
+          case 'apim_name':
+            return 'apim'
+          default:
+            return ''
+        }
+      })
+
+      expect(() => parseInputs()).toThrow('resource_group input is required')
+    })
+
+    it('should throw error when apim_name is missing', () => {
+      mockCore.getInput.mockImplementation((name: unknown) => {
+        const nameStr = name as string
+        switch (nameStr) {
+          case 'subscription_id':
+            return 'sub-id'
+          case 'resource_group':
+            return 'rg'
+          case 'apim_name':
+            return ''
+          default:
+            return ''
+        }
+      })
+
+      expect(() => parseInputs()).toThrow('apim_name input is required')
+    })
   })
 
   describe('validateXmlContent', () => {

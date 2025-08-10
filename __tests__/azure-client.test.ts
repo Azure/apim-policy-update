@@ -180,6 +180,51 @@ describe('AzureApimClient', () => {
         error: 'Update failed'
       })
     })
+
+    it('should return not updated when API does not exist', async () => {
+      const createAsyncIterator = (items: any[]) => ({
+        [Symbol.asyncIterator]: async function* () {
+          for (const item of items) {
+            yield item
+          }
+        }
+      })
+
+      mockClient.api.listByService.mockReturnValue(createAsyncIterator([]))
+
+      const client = new AzureApimClient(mockConfig)
+      const result = await client.updateApiPolicy('missing-api', '<policies/>')
+
+      expect(result.updated).toBe(false)
+      expect(result.error).toContain("API 'missing-api' not found")
+      expect(mockClient.apiPolicy.createOrUpdate).not.toHaveBeenCalled()
+    })
+
+    it('should extract detailed Azure error messages', async () => {
+      const createAsyncIterator = (items: any[]) => ({
+        [Symbol.asyncIterator]: async function* () {
+          for (const item of items) {
+            yield item
+          }
+        }
+      })
+
+      mockClient.api.listByService.mockReturnValue(
+        createAsyncIterator([{ name: 'test-api' }])
+      )
+
+      const azureError: any = new Error('outer')
+      azureError.response = {
+        data: { error: { message: 'Inner Azure error' } }
+      }
+      mockClient.apiPolicy.createOrUpdate.mockRejectedValue(azureError)
+
+      const client = new AzureApimClient(mockConfig)
+      const result = await client.updateApiPolicy('test-api', '<policies/>')
+
+      expect(result.updated).toBe(false)
+      expect(result.error).toBe('Inner Azure error')
+    })
   })
 
   describe('updateOperationPolicy', () => {
@@ -267,6 +312,79 @@ describe('AzureApimClient', () => {
         updated: false,
         error: 'Operation update failed'
       })
+    })
+
+    it('should return not updated when API or operation does not exist', async () => {
+      const createAsyncIterator = (items: any[]) => ({
+        [Symbol.asyncIterator]: async function* () {
+          for (const item of items) {
+            yield item
+          }
+        }
+      })
+
+      // API missing
+      mockClient.api.listByService.mockReturnValue(createAsyncIterator([]))
+
+      const client = new AzureApimClient(mockConfig)
+      const res1 = await client.updateOperationPolicy('missing', 'op', '<p/>')
+      expect(res1.updated).toBe(false)
+      expect(res1.error).toContain("API 'missing' not found")
+
+      // API exists but operation missing
+      mockClient.api.listByService.mockReturnValue(
+        createAsyncIterator([{ name: 'api1' }])
+      )
+      mockClient.apiOperation.listByApi.mockReturnValue(createAsyncIterator([]))
+      const res2 = await client.updateOperationPolicy('api1', 'missing', '<p/>')
+      expect(res2.updated).toBe(false)
+      expect(res2.error).toContain("Operation 'missing' not found")
+    })
+
+    it('should extract detailed Azure error messages for operation updates', async () => {
+      const createAsyncIterator = (items: any[]) => ({
+        [Symbol.asyncIterator]: async function* () {
+          for (const item of items) {
+            yield item
+          }
+        }
+      })
+
+      mockClient.api.listByService.mockReturnValue(
+        createAsyncIterator([{ name: 'api1' }])
+      )
+      mockClient.apiOperation.listByApi.mockReturnValue(
+        createAsyncIterator([{ name: 'op1' }])
+      )
+
+      const azureError: any = new Error('outer')
+      azureError.response = { data: { message: 'Operation Azure error' } }
+      mockClient.apiOperationPolicy.createOrUpdate.mockRejectedValue(azureError)
+
+      const client = new AzureApimClient(mockConfig)
+      const result = await client.updateOperationPolicy('api1', 'op1', '<p/>')
+      expect(result.updated).toBe(false)
+      expect(result.error).toBe('Operation Azure error')
+    })
+  })
+
+  describe('list methods error handling', () => {
+    it('listApis should return [] on error', async () => {
+      mockClient.api.listByService.mockImplementation(() => {
+        throw new Error('boom')
+      })
+      const client = new AzureApimClient(mockConfig)
+      const apis = await client.listApis()
+      expect(apis).toEqual([])
+    })
+
+    it('listOperations should return [] on error', async () => {
+      mockClient.apiOperation.listByApi.mockImplementation(() => {
+        throw new Error('boom')
+      })
+      const client = new AzureApimClient(mockConfig)
+      const ops = await client.listOperations('api1')
+      expect(ops).toEqual([])
     })
   })
 })
