@@ -49,6 +49,7 @@ jobs:
         run: npx tsc -p tsconfig.json --noEmit
 
       - name: Unit tests
+        shell: bash
         run: npm run ci-test
 
       - name: Build (package)
