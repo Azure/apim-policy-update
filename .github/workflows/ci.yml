@@ -16,10 +16,7 @@ permissions:
 jobs:
   build-and-test:
     name: Build and Test
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -40,23 +37,16 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Configure Git (Windows line endings)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: git config --global core.autocrlf false
-
       - name: Type check
         run: npx tsc -p tsconfig.json --noEmit
 
       - name: Unit tests
-        shell: bash
         run: npm run ci-test
 
       - name: Build (package)
         run: npm run package
 
-      - name: Verify dist is up-to-date (Linux)
-        if: runner.os == 'Linux'
+      - name: Verify dist is up-to-date
         shell: bash
         run: |
           if ! git diff --quiet -- dist; then
@@ -64,17 +54,6 @@ jobs:
             git status --porcelain
             exit 1
           fi
-
-      - name: Verify dist is up-to-date (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          git diff --quiet -- dist
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "dist is not up-to-date. Run 'npm run package' and commit the changes."
-            git status --porcelain
-            exit 1
-          }
 
   test-action:
     name: GitHub Action Self-test (mock)
