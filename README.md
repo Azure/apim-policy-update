@@ -8,11 +8,11 @@ repository using the official Azure SDK.
 ## What it does
 
 - Automatic policy discovery
-  - Convention: policies/<apiId>/api.xml and
-    policies/<apiId>/operations/<operationId>.xml
-  - Manifest: policy_manifest.yaml (see schema below)
+  - Convention: `policies/<apiId>/api.xml` and
+    `policies/<apiId>/operations/<operationId>.xml`
+  - Manifest: `policy_manifest.yaml` (see schema below)
 - Resource checks: verifies API and operation exist before updating
-- Basic XML validation: ensures files contain a <policies>…</policies> root
+- Basic XML validation: ensures files contain a `<policies>…</policies>` root
 - Clear logging and error messages (lists APIs and some operations for context)
 - Output: exposes the last ETag returned by Azure after updates
 
