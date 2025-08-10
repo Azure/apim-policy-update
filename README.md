@@ -77,7 +77,9 @@ policies/
         └── create-order.xml
 ```
 
-Option 2 — Manifest (policy_manifest.yaml):
+Option 2 — Manifest (`policy_manifest.yaml`):
+
+**User can specify custom paths for API and operation policies.**
 
 ```yaml
 policies:
@@ -122,17 +124,48 @@ performed by the action).
 
 ## Local development
 
+### Setup
+
 ```bash
+# Clone the repository
+git clone https://github.com/Azure/apim-policy-update.git
+cd apim-policy-update
+
+# Install dependencies
 npm install
+# Run script (include format/lint/test/coverage/package)
 npm run all
 ```
 
-Run action locally
+### Run action locally
+
+To try a real end-to-end update from your machine, prepare these first:
+
+- Have an Azure API Management (APIM) instance
+- In that APIM, create an API with id `sample-api` and an operation with id
+  `get-data` (to match the examples)
+- Copy `.env.example` to `.env` and set your Azure values:
+  - `INPUT_SUBSCRIPTION_ID`
+  - `INPUT_RESOURCE_GROUP`
+  - `INPUT_APIM_NAME`
+  - `INPUT_POLICY_MANIFEST_PATH` can stay as `examples/policy_manifest.yaml`
+    (default), which maps to `examples/policies/sample-api/api.xml` and
+    `examples/policies/sample-api/operations/get-data.xml`
+
+With those in place, running the local action will update the `sample-api` API
+policy and the `get-data` operation policy in your APIM using the example XML
+files.
 
 ```bash
+# Copy .env.example to .env
 cp .env.example .env
+
 # Update .env with your Azure credentials
 
+# Login to Azure
+az login
+
+# Run action locally
 npm run local-action
 ```
 
