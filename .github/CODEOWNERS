@@ -1,7 +1,1 @@
-############################################################################
-#                           Repository CODEOWNERS                          #
-# Order is important! The last matching pattern takes the most precedence. #
-############################################################################
-
-# Default owners, unless a later match takes precedence.
-* @ry0y4n
+@ry0y4n
