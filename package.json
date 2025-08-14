@@ -1,7 +1,7 @@
 {
   "name": "apim-policy-update",
   "description": "Update Azure API Management policies from Git repository using REST API",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "author": "Azure",
   "type": "module",
   "private": false,
