@@ -45,7 +45,7 @@
   "dependencies": {
     "@actions/core": "^1.11.1",
     "@azure/arm-apimanagement": "^10.0.0",
-    "@azure/identity": "^4.11.1",
+    "@azure/identity": "^4.13.0",
     "glob": "^11.0.3",
     "yaml": "^2.8.1"
   },
